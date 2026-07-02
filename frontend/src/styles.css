@@ -477,17 +477,82 @@ button {
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: stretch;
+  padding: 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(135deg, #111a24, #204c49 52%, #245b86);
+  background-size: 22px 22px, 22px 22px, auto;
+  color: #f8f3e7;
+  box-shadow: var(--shadow-lg);
+}
+
+.page-header > div:first-child {
+  min-width: 0;
+  align-self: center;
 }
 
 .page-header h2 {
-  margin: 7px 0 0;
-  font-size: clamp(30px, 4vw, 52px);
+  max-width: 980px;
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
   letter-spacing: 0;
   line-height: 1;
+}
+
+.page-header .eyebrow {
+  display: block;
+  margin: 0 0 10px;
+  color: #f7c24f;
+}
+
+.page-header .page-intro {
+  display: block;
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: rgba(248, 243, 231, 0.78);
+  line-height: 1.65;
+}
+
+.page-header > .pill,
+.page-header > .dashboard-result,
+.page-header > .secondary-button,
+.page-header > .primary-button,
+.page-header > .small-button,
+.page-header > .action-row {
+  align-self: center;
+  justify-self: end;
+}
+
+.page-header > .pill,
+.page-header > .dashboard-result,
+.page-header > .action-row {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8f3e7;
+}
+
+.page-header > .pill {
+  min-height: 48px;
+  color: #f8f3e7;
+  box-shadow: none;
+}
+
+.page-header > .dashboard-result {
+  min-width: 240px;
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.page-header > .dashboard-result span,
+.page-header > .dashboard-result strong {
+  color: #f8f3e7;
 }
 
 .page-intro {
@@ -2527,6 +2592,20 @@ tbody tr:hover {
   .content-topbar {
     margin: -18px -18px 22px;
     padding: 14px 18px;
+  }
+
+  .page-header {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .page-header > .pill,
+  .page-header > .dashboard-result,
+  .page-header > .secondary-button,
+  .page-header > .primary-button,
+  .page-header > .small-button,
+  .page-header > .action-row {
+    justify-self: stretch;
   }
 
   .page-header,
