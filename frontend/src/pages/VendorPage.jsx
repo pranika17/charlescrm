@@ -83,9 +83,7 @@ export default function VendorPage() {
 
   return (
     <section className="page">
-      <PageTitle eyebrow="Commercial" title="Vendor Management">
-        <p className="page-intro">Add supplier records with contact, GST, and address details for purchase planning.</p>
-      </PageTitle>
+      <PageTitle eyebrow="Commercial" title="Vendors" />
 
       <MetricGrid items={stats} />
 

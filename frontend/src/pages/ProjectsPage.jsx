@@ -175,9 +175,8 @@ export default function ProjectsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Project Setup</p>
-          <h2>Start Every Job With Clear Scope and Commercial Control</h2>
+          <h2>Projects</h2>
         </div>
-        <div className="pill">Project Register</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}

@@ -189,9 +189,7 @@ export default function BOQPage() {
 
   return (
     <section className="page">
-      <PageTitle eyebrow="Planning" title="BOQ Management">
-        <p className="page-intro">Build a clear bill of quantities with category, unit, rate, and total cost visibility.</p>
-      </PageTitle>
+      <PageTitle eyebrow="Planning" title="BOQ" />
 
       <MetricGrid items={stats} />
 

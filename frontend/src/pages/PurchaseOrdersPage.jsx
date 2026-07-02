@@ -132,9 +132,7 @@ export default function PurchaseOrdersPage() {
 
   return (
     <section className="page">
-      <PageTitle eyebrow="Procurement" title="Purchase Orders">
-        <p className="page-intro">Create purchase orders against vendors and track approval or receiving status.</p>
-      </PageTitle>
+      <PageTitle eyebrow="Procurement" title="Purchase Orders" />
 
       <MetricGrid items={stats} />
 

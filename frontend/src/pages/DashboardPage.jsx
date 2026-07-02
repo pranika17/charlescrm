@@ -236,10 +236,8 @@ export default function DashboardPage() {
           </div>
         )}
         eyebrow="Dashboard"
-        title="Project Command Center"
-      >
-        <p className="page-intro">Clean overview of revenue, spend, collections, approvals, and risk across active work.</p>
-      </PageTitle>
+        title="Dashboard"
+      />
       {/*
         Dashboard blocks below are data-driven: update arrays above, not markup.
       */}

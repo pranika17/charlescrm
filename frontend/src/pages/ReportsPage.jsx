@@ -91,9 +91,8 @@ export default function ReportsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Business Intelligence</p>
-          <h2>See Which Projects Protect Profit and Which Ones Are Slipping</h2>
+          <h2>Reports</h2>
         </div>
-        <div className="pill">Decision Support</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}

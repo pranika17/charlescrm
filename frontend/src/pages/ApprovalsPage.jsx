@@ -64,9 +64,8 @@ export default function ApprovalsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Control Tower</p>
-          <h2>Approve Faster Without Losing Commercial Discipline</h2>
+          <h2>Approvals</h2>
         </div>
-        <div className="pill">Risk Control</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}

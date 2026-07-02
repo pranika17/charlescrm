@@ -321,9 +321,7 @@ export default function SiteOperationsPage() {
     <section className="page site-operations-page">
       <div className="site-ops-hero">
         <div>
-          <p className="eyebrow">Execution Control</p>
           <h2>Site Operations</h2>
-          <p>Daily progress, proof images, bills, drawings, and site notes stay attached to the selected project.</p>
         </div>
         <div className="site-project-card">
           <span>Project</span>

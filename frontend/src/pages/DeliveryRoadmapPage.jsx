@@ -123,7 +123,7 @@ export default function DeliveryRoadmapPage() {
       <PageTitle
         action={<div className="pill">5 to 6 Weeks</div>}
         eyebrow="Roadmap"
-        title="Charles CRM Scope"
+        title="Delivery Roadmap"
       />
 
       <MetricGrid className="roadmap-metric-grid" items={metrics} variant="dashboard" />

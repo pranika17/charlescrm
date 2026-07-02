@@ -116,9 +116,7 @@ export default function EquipmentPage() {
 
   return (
     <section className="page">
-      <PageTitle eyebrow="Assets" title="Equipment Management">
-        <p className="page-intro">Track machinery, rentals, daily cost pressure, and availability.</p>
-      </PageTitle>
+      <PageTitle eyebrow="Assets" title="Equipment" />
 
       <MetricGrid items={stats} />
 

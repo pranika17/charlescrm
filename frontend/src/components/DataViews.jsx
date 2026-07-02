@@ -1,10 +1,9 @@
 import React from "react";
 
-export function PageTitle({ title, action, children, eyebrow }) {
+export function PageTitle({ title, action, children }) {
   return (
     <div className="page-header">
       <div>
-        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h2>{title}</h2>
         {children}
       </div>

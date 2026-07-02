@@ -162,9 +162,8 @@ export default function LaborPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Workforce Control</p>
-          <h2>Track Labor Before Productivity and Cost Drift Apart</h2>
+          <h2>Labor</h2>
         </div>
-        <div className="pill">Crew Tracking</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}

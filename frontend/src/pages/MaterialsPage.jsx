@@ -275,9 +275,8 @@ export default function MaterialsPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Stock and Consumption</p>
-          <h2>Control Material Flow Before Wastage Eats the Job</h2>
+          <h2>Materials</h2>
         </div>
-        <div className="pill">Procurement Flow</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}

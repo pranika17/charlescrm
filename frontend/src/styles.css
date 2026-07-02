@@ -501,15 +501,13 @@ button {
 .page-header h2 {
   max-width: 980px;
   margin: 0;
-  font-size: clamp(32px, 4vw, 52px);
+  font-size: clamp(28px, 3vw, 42px);
   letter-spacing: 0;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .page-header .eyebrow {
-  display: block;
-  margin: 0 0 10px;
-  color: #f7c24f;
+  display: none;
 }
 
 .page-header .page-intro {
@@ -539,7 +537,7 @@ button {
 }
 
 .page-header > .pill {
-  min-height: 48px;
+  min-height: 42px;
   color: #f8f3e7;
   box-shadow: none;
 }

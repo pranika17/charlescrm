@@ -536,7 +536,7 @@ export default function FinancePage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Finance</p>
-          <h2>Project Finance Control</h2>
+          <h2>Finance</h2>
         </div>
         <div className="pill">{selectedProjectData ? selectedProjectData.code : "Select Project"}</div>
       </div>

@@ -694,7 +694,7 @@ export default function QuotationsPage() {
 
   return (
     <section className="page">
-      <PageTitle action={<div className="pill">PDF Ready</div>} eyebrow="Quotation" title="Civil Project Quotation" />
+      <PageTitle eyebrow="Quotation" title="Quotations" />
 
       {error ? <div className="notice-card error">{error}</div> : null}
 

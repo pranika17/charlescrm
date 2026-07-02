@@ -170,12 +170,8 @@ export default function UsersPage() {
       <div className="page-header">
         <div>
           <p className="eyebrow">Authentication & User Management</p>
-          <h2>Control Who Can See, Update, and Approve Work Across Charles CRM</h2>
-          <p className="page-intro">
-            This page turns the stored user roles into something operational. Owners can add team accounts and adjust access based on how each person works inside the business.
-          </p>
+          <h2>Users</h2>
         </div>
-        <div className="pill">Owner Only</div>
       </div>
 
       {error ? <div className="notice-card error">{error}</div> : null}
