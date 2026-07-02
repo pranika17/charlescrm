@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
@@ -112,14 +112,47 @@ const groupCodes = {
 export default function AppShell({ children }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-scroll-lock", isSidebarOpen);
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.classList.remove("sidebar-scroll-lock");
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isSidebarOpen]);
 
   function isActive(path) {
     return path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
   }
 
+  function handleSignOut() {
+    setIsSidebarOpen(false);
+    signOut();
+  }
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${isSidebarOpen ? "sidebar-is-open" : ""}`}>
+      <button
+        aria-label="Close menu"
+        className="sidebar-backdrop"
+        onClick={() => setIsSidebarOpen(false)}
+        type="button"
+      />
+      <aside className={`sidebar ${isSidebarOpen ? "sidebar--open" : ""}`}>
         <div className="sidebar-top">
           <div className="brand-block">
             <div className="brand-lockup">
@@ -131,6 +164,15 @@ export default function AppShell({ children }) {
                 </div>
                 <h1>CharlesCRM</h1>
               </div>
+              <button
+                aria-label="Close menu"
+                className="sidebar-close-button"
+                onClick={() => setIsSidebarOpen(false)}
+                type="button"
+              >
+                <span />
+                <span />
+              </button>
             </div>
             <div className="control-strip">
               <span>Live Cost Desk</span>
@@ -147,7 +189,12 @@ export default function AppShell({ children }) {
                 </p>
                 <div className="nav-group-items">
                   {group.items.filter((item) => hasAccess(user, item.accessKey)).map((item) => (
-                    <Link key={item.to} className={isActive(item.to) ? "nav-link active" : "nav-link"} to={item.to}>
+                    <Link
+                      key={item.to}
+                      className={isActive(item.to) ? "nav-link active" : "nav-link"}
+                      onClick={() => setIsSidebarOpen(false)}
+                      to={item.to}
+                    >
                       <span className="nav-link-label">{item.label}</span>
                     </Link>
                   ))}
@@ -162,7 +209,7 @@ export default function AppShell({ children }) {
           <p className="sidebar-user">{user?.full_name || user?.email}</p>
           <p className="sidebar-role">{getRoleLabel(user?.role)} access</p>
         </div>
-          <button className="secondary-button" onClick={signOut} type="button">
+          <button className="secondary-button" onClick={handleSignOut} type="button">
             Logout
           </button>
         </div>
@@ -170,6 +217,17 @@ export default function AppShell({ children }) {
 
       <main className="content">
         <div className="content-topbar">
+          <button
+            aria-expanded={isSidebarOpen}
+            aria-label="Open menu"
+            className="mobile-menu-button"
+            onClick={() => setIsSidebarOpen(true)}
+            type="button"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <div>
             <strong>{location.pathname === "/" ? "Dashboard" : location.pathname.replace("/", "").replaceAll("-", " ")}</strong>
           </div>
