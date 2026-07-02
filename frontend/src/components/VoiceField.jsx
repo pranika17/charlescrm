@@ -87,6 +87,28 @@ function cleanPlaceholder(value) {
   return String(value || "").replace(/^Example:\s*/i, "");
 }
 
+function MicIcon({ active = false }) {
+  return (
+    <svg aria-hidden="true" className="voice-button-icon" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 14.5a3 3 0 0 0 3-3v-5a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M18 11.5a6 6 0 0 1-12 0M12 17.5V21M8.5 21h7"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      {active ? <circle className="voice-button-dot" cx="18" cy="5" r="2.2" fill="currentColor" /> : null}
+    </svg>
+  );
+}
+
 export default function VoiceField({
   label,
   helper,
@@ -222,6 +244,7 @@ export default function VoiceField({
         <span>{label}</span>
         {control !== "file" ? (
           <button
+            aria-label={isListening ? `Stop voice fill for ${label}` : `Start voice fill for ${label}`}
             className={`voice-button ${isListening ? "voice-button--active" : ""}`}
             disabled={disabled}
             onClick={(event) => {
@@ -232,9 +255,10 @@ export default function VoiceField({
                 startListening();
               }
             }}
+            title={isListening ? "Stop voice fill" : "Start voice fill"}
             type="button"
           >
-            {isListening ? "Stop Mic" : "Voice Fill"}
+            <MicIcon active={isListening} />
           </button>
         ) : null}
       </span>
