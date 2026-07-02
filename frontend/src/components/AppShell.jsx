@@ -11,11 +11,13 @@ const navGroups = [
         to: "/",
         label: "Dashboard",
         accessKey: "dashboard",
+        icon: "dashboard",
       },
       {
         to: "/users",
         label: "Users",
         accessKey: "userManagement",
+        icon: "users",
       },
     ],
   },
@@ -27,36 +29,42 @@ const navGroups = [
         to: "/projects",
         label: "Projects",
         accessKey: "projects",
+        icon: "projects",
       },
 
       {
         to: "/boq",
         label: "BOQ",
         accessKey: "boq",
+        icon: "boq",
       },
 
       {
         to: "/site-operations",
         label: "Site Operations",
         accessKey: "siteOperations",
+        icon: "site",
       },
 
       {
         to: "/labor",
         label: "Labor",
         accessKey: "labor",
+        icon: "labor",
       },
 
       {
         to: "/materials",
         label: "Materials",
         accessKey: "materials",
+        icon: "materials",
       },
 
       {
         to: "/equipment",
         label: "Equipment",
         accessKey: "equipment",
+        icon: "equipment",
       },
     ],
   },
@@ -68,36 +76,42 @@ const navGroups = [
         to: "/vendors",
         label: "Vendors",
         accessKey: "vendors",
+        icon: "vendors",
       },
 
       {
         to: "/purchase-orders",
         label: "Purchase Orders",
         accessKey: "purchaseOrders",
+        icon: "orders",
       },
 
       {
         to: "/finance",
         label: "Finance",
         accessKey: "finance",
+        icon: "finance",
       },
 
       {
         to: "/quotations",
         label: "Quotations",
         accessKey: "quotations",
+        icon: "quotations",
       },
 
       {
         to: "/approvals",
         label: "Approvals",
         accessKey: "approvals",
+        icon: "approvals",
       },
 
       {
         to: "/reports",
         label: "Reports",
         accessKey: "reports",
+        icon: "reports",
       },
     ],
   },
@@ -108,6 +122,37 @@ const groupCodes = {
   Execution: "EX",
   Commercial: "CO",
 };
+
+const iconPaths = {
+  dashboard: ["M4 13h6V4H4v9Z", "M14 20h6v-9h-6v9Z", "M4 20h6v-3H4v3Z", "M14 7h6V4h-6v3Z"],
+  users: ["M16 18v-1.5A3.5 3.5 0 0 0 12.5 13h-5A3.5 3.5 0 0 0 4 16.5V18", "M10 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M20 18v-1a3 3 0 0 0-2.2-2.9", "M15.5 4.2a3 3 0 0 1 0 5.6"],
+  projects: ["M4 19V6.5A2.5 2.5 0 0 1 6.5 4h4L13 6.5h4.5A2.5 2.5 0 0 1 20 9v10H4Z", "M4 10h16"],
+  boq: ["M6 3h9l3 3v15H6V3Z", "M14 3v4h4", "M9 12h6", "M9 16h6", "M9 8h2"],
+  site: ["M4 19h16", "M6 19V9l6-4 6 4v10", "M9 19v-6h6v6", "M9 9h.01", "M15 9h.01"],
+  labor: ["M8 21v-4", "M16 21v-4", "M5 17h14l-2-7H7l-2 7Z", "M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"],
+  materials: ["M4 8l8-4 8 4-8 4-8-4Z", "M4 8v8l8 4 8-4V8", "M12 12v8"],
+  equipment: ["M5 17h14", "M7 17l2-8h7l2 8", "M10 9V5h4v4", "M8 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z", "M16 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"],
+  vendors: ["M4 10h16l-1-5H5l-1 5Z", "M6 10v10h12V10", "M9 20v-5h6v5", "M8 5V3h8v2"],
+  orders: ["M7 3h10v18H7V3Z", "M10 7h4", "M10 11h4", "M10 15h2"],
+  finance: ["M12 3v18", "M17 7.5A4 4 0 0 0 12 5c-2.2 0-4 1-4 2.7 0 4.3 9 2.1 9 6.6 0 1.7-1.8 2.7-4 2.7a5 5 0 0 1-5-2.5"],
+  quotations: ["M5 4h14v16H5V4Z", "M8 8h8", "M8 12h8", "M8 16h5"],
+  approvals: ["M20 6 9 17l-5-5", "M15 5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"],
+  reports: ["M5 20V4", "M19 20V4", "M5 20h14", "M9 16v-5", "M12 16V8", "M15 16v-7"],
+};
+
+function NavIcon({ name }) {
+  const paths = iconPaths[name] || iconPaths.dashboard;
+
+  return (
+    <span className="nav-link-icon" aria-hidden="true">
+      <svg fill="none" viewBox="0 0 24 24">
+        {paths.map((path) => (
+          <path d={path} key={path} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+        ))}
+      </svg>
+    </span>
+  );
+}
 
 export default function AppShell({ children }) {
   const location = useLocation();
@@ -195,6 +240,7 @@ export default function AppShell({ children }) {
                       onClick={() => setIsSidebarOpen(false)}
                       to={item.to}
                     >
+                      <NavIcon name={item.icon} />
                       <span className="nav-link-label">{item.label}</span>
                     </Link>
                   ))}
