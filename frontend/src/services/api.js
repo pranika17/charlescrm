@@ -72,14 +72,8 @@ function dispatchApiNotice(detail) {
 function getMutationVerb(method = "GET") {
   const normalizedMethod = method.toUpperCase();
 
-  if (normalizedMethod === "POST") {
-    return "Saved successfully";
-  }
-  if (normalizedMethod === "PATCH" || normalizedMethod === "PUT") {
-    return "Updated successfully";
-  }
-  if (normalizedMethod === "DELETE") {
-    return "Deleted successfully";
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(normalizedMethod)) {
+    return "Added successfully";
   }
 
   return "";
@@ -131,7 +125,7 @@ async function request(path, options = {}) {
     dispatchApiNotice({
       type: "success",
       title: mutationVerb,
-      message: "The latest data has been saved and refreshed where this page supports it.",
+      message: "Done",
     });
   }
 

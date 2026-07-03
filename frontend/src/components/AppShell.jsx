@@ -189,7 +189,7 @@ export default function AppShell({ children }) {
       const notice = {
         id,
         type: event.detail?.type || "success",
-        title: event.detail?.title || "Saved successfully",
+        title: event.detail?.type === "error" ? "Action failed" : "Added successfully",
         message: event.detail?.message || "The action was completed.",
         userName,
       };
@@ -311,7 +311,7 @@ export default function AppShell({ children }) {
             </div>
             <div>
               <strong>{notice.title}</strong>
-              <p>{notice.type === "error" ? notice.message : `Added by ${notice.userName}. ${notice.message}`}</p>
+              <p>{notice.type === "error" ? notice.message : `Nice work, ${notice.userName}`}</p>
             </div>
             <button
               aria-label="Dismiss message"

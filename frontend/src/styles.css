@@ -1368,18 +1368,18 @@ canvas {
 }
 
 .toast-stack {
-  bottom: 22px;
   display: grid;
   gap: 10px;
   max-width: min(420px, calc(100vw - 24px));
   position: fixed;
   right: 22px;
+  top: 18px;
   z-index: 80;
 }
 
 .toast-card {
   align-items: start;
-  background: var(--panel);
+  background: #ecfdf3;
   border: 1px solid rgba(20, 116, 93, 0.24);
   border-left: 5px solid var(--green);
   border-radius: 8px;
@@ -1392,6 +1392,7 @@ canvas {
 }
 
 .toast-card--error {
+  background: var(--red-soft);
   border-color: rgba(184, 64, 53, 0.26);
   border-left-color: var(--red);
 }
@@ -1415,7 +1416,7 @@ canvas {
 
 .toast-card strong {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.2;
 }
 
@@ -3122,10 +3123,10 @@ tbody tr:hover {
   }
 
   .toast-stack {
-    bottom: 12px;
     left: 12px;
     max-width: none;
     right: 12px;
+    top: 12px;
   }
 
   .content-topbar {
