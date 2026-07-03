@@ -19,7 +19,7 @@ import {
   fetchProjectSummary,
   fetchSmartAlerts,
 } from "../services/api";
-import { formatCurrency } from "../utils/formatters";
+import { calculateClosingBalance, formatCurrency, toNumber } from "../utils/formatters";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -198,10 +198,6 @@ const initialCashFlowForm = {
   closing_balance: "",
   notes: "",
 };
-
-function toNumber(value) {
-  return Number(value || 0);
-}
 
 function percent(value) {
   return `${Math.max(0, toNumber(value)).toFixed(1)}%`;
@@ -418,7 +414,7 @@ export default function FinancePage() {
           opening_balance: toNumber(cashFlowForm.opening_balance),
           cash_in: toNumber(cashFlowForm.cash_in),
           cash_out: toNumber(cashFlowForm.cash_out),
-          closing_balance: toNumber(cashFlowForm.closing_balance),
+          closing_balance: calculateClosingBalance(cashFlowForm.opening_balance, cashFlowForm.cash_in, cashFlowForm.cash_out),
           notes: cashFlowForm.notes.trim(),
         });
         setCashFlowForm((current) => ({ ...initialCashFlowForm, project: current.project }));
@@ -445,6 +441,7 @@ export default function FinancePage() {
   const netProfitLoss = toNumber(projectSummary?.profit_or_loss);
   const pendingCollections = toNumber(projectSummary?.pending_collections) || Math.max(expectedRevenue - received, 0);
   const cashFlow = toNumber(projectSummary?.cash_flow);
+  const computedClosingBalance = calculateClosingBalance(cashFlowForm.opening_balance, cashFlowForm.cash_in, cashFlowForm.cash_out);
   const budgetUtilization = toNumber(projectSummary?.budget_utilization_percent);
   const profitMargin = toNumber(projectSummary?.profit_margin_percent);
   const pendingPayments = outgoingPayments;
@@ -732,7 +729,7 @@ export default function FinancePage() {
             <VoiceField label="Opening Balance" min="0" onChangeValue={(value) => setCashFlowForm((current) => ({ ...current, opening_balance: value }))} step="0.01" type="number" value={cashFlowForm.opening_balance} />
             <VoiceField label="Cash In" min="0" onChangeValue={(value) => setCashFlowForm((current) => ({ ...current, cash_in: value }))} step="0.01" type="number" value={cashFlowForm.cash_in} />
             <VoiceField label="Cash Out" min="0" onChangeValue={(value) => setCashFlowForm((current) => ({ ...current, cash_out: value }))} step="0.01" type="number" value={cashFlowForm.cash_out} />
-            <VoiceField label="Closing Balance" min="0" onChangeValue={(value) => setCashFlowForm((current) => ({ ...current, closing_balance: value }))} step="0.01" type="number" value={cashFlowForm.closing_balance} />
+            <VoiceField disabled label="Closing Balance" min="0" step="0.01" type="number" value={String(computedClosingBalance)} />
             <VoiceField appendVoice className="field field--full" control="textarea" label="Cash Flow Notes" onChangeValue={(value) => setCashFlowForm((current) => ({ ...current, notes: value }))} placeholder="Daily / weekly / monthly cash note" rows={3} value={cashFlowForm.notes} />
             <button className="primary-button" type="submit">Save Cash Flow</button>
           </form>

@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DataTable, MetricGrid } from "../components/DataViews";
 import VoiceField from "../components/VoiceField";
 import { createProject, fetchProjects } from "../services/api";
-import { formatCurrency, formatStatus } from "../utils/formatters";
+import { formatCurrency, formatStatus, toNumber } from "../utils/formatters";
 
 const initialForm = {
   name: "",
@@ -55,8 +55,8 @@ function validateProjectForm(form) {
   const trimmedName = form.name.trim();
   const trimmedClient = form.client_name.trim();
   const trimmedLocation = form.location.trim();
-  const budget = Number(form.estimated_budget);
-  const revenue = Number(form.estimated_revenue);
+  const budget = toNumber(form.estimated_budget);
+  const revenue = toNumber(form.estimated_revenue);
 
   if (!trimmedName || trimmedName.length < 3) {
     return "Project name should be at least 3 characters.";
@@ -108,8 +108,8 @@ export default function ProjectsPage() {
     loadProjects();
   }, []);
 
-  const totalBudget = useMemo(() => projects.reduce((sum, item) => sum + Number(item.estimated_budget || 0), 0), [projects]);
-  const totalRevenue = useMemo(() => projects.reduce((sum, item) => sum + Number(item.estimated_revenue || 0), 0), [projects]);
+  const totalBudget = useMemo(() => projects.reduce((sum, item) => sum + toNumber(item.estimated_budget), 0), [projects]);
+  const totalRevenue = useMemo(() => projects.reduce((sum, item) => sum + toNumber(item.estimated_revenue), 0), [projects]);
   const activeProjectCount = useMemo(() => projects.filter((item) => item.status === "active").length, [projects]);
   const metrics = [
     { label: "Total Projects", value: projects.length, trend: "All jobs tracked in one register" },
@@ -157,8 +157,8 @@ export default function ProjectsPage() {
         client_name: form.client_name.trim(),
         location: form.location.trim(),
         description: form.description.trim(),
-        estimated_budget: Number(form.estimated_budget || 0),
-        estimated_revenue: Number(form.estimated_revenue || 0),
+        estimated_budget: toNumber(form.estimated_budget),
+        estimated_revenue: toNumber(form.estimated_revenue),
         end_date: form.end_date || null,
       });
       setForm(initialForm);

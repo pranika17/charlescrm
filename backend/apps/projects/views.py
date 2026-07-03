@@ -143,7 +143,7 @@ class ProjectSummaryView(APIView):
                 "total_received": incoming,
                 "pending_collections": pending_collections,
                 "pending_payments": outgoing,
-                "cash_flow": incoming - outgoing - other_expenses - petty_expense,
+                "cash_flow": incoming - total_spend,
                 "profit_or_loss": net_profit,
                 "net_profit": net_profit if net_profit > zero else zero,
                 "net_loss": abs(net_profit) if net_profit < zero else zero,

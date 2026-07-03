@@ -11,7 +11,7 @@ import {
   fetchMaterials,
   fetchProjects,
 } from "../services/api";
-import { formatCurrency } from "../utils/formatters";
+import { calculateLineTotal, formatCurrency, toNumber } from "../utils/formatters";
 
 const materialCategories = [
   "Concrete Materials",
@@ -58,7 +58,7 @@ const initialUsageForm = {
 };
 
 function calculatePurchaseTotal(form) {
-  return Number(form.quantity || 0) * Number(form.unit_rate || 0);
+  return calculateLineTotal(form.quantity, form.unit_rate);
 }
 
 function validateMaterialForm(form) {
@@ -68,7 +68,7 @@ function validateMaterialForm(form) {
   if (!form.unit.trim()) {
     return "Unit is required.";
   }
-  if (Number(form.default_rate || 0) < 0) {
+  if (toNumber(form.default_rate) < 0) {
     return "Default rate cannot be negative.";
   }
   return "";
@@ -84,10 +84,10 @@ function validatePurchaseForm(form) {
   if (!form.purchase_date) {
     return "Purchase date is required.";
   }
-  if (Number(form.quantity) <= 0) {
+  if (toNumber(form.quantity) <= 0) {
     return "Purchase quantity must be greater than zero.";
   }
-  if (Number(form.unit_rate) <= 0) {
+  if (toNumber(form.unit_rate) <= 0) {
     return "Unit rate must be greater than zero.";
   }
   return "";
@@ -103,10 +103,10 @@ function validateUsageForm(form) {
   if (!form.usage_date) {
     return "Usage date is required.";
   }
-  if (Number(form.quantity_used) <= 0) {
+  if (toNumber(form.quantity_used) <= 0) {
     return "Quantity used must be greater than zero.";
   }
-  if (Number(form.quantity_wasted || 0) < 0) {
+  if (toNumber(form.quantity_wasted) < 0) {
     return "Quantity wasted cannot be negative.";
   }
   return "";
@@ -165,9 +165,9 @@ export default function MaterialsPage() {
   }, [selectedProject]);
 
   const purchaseTotal = useMemo(() => calculatePurchaseTotal(purchaseForm), [purchaseForm]);
-  const totalPurchasedValue = useMemo(() => purchases.reduce((sum, item) => sum + Number(item.total_amount || 0), 0), [purchases]);
-  const totalUsedQty = useMemo(() => usageEntries.reduce((sum, item) => sum + Number(item.quantity_used || 0), 0), [usageEntries]);
-  const totalWasteQty = useMemo(() => usageEntries.reduce((sum, item) => sum + Number(item.quantity_wasted || 0), 0), [usageEntries]);
+  const totalPurchasedValue = useMemo(() => purchases.reduce((sum, item) => sum + toNumber(item.total_amount), 0), [purchases]);
+  const totalUsedQty = useMemo(() => usageEntries.reduce((sum, item) => sum + toNumber(item.quantity_used), 0), [usageEntries]);
+  const totalWasteQty = useMemo(() => usageEntries.reduce((sum, item) => sum + toNumber(item.quantity_wasted), 0), [usageEntries]);
   const metrics = [
     { label: "Material Master", value: materials.length, trend: "Standardized items available for site entries" },
     { label: "Purchased Value", value: formatCurrency(totalPurchasedValue), trend: "Recorded procurement value for the selected project" },
@@ -211,7 +211,7 @@ export default function MaterialsPage() {
         category: materialForm.category.trim(),
         unit: materialForm.unit.trim(),
         description: materialForm.description.trim(),
-        default_rate: Number(materialForm.default_rate || 0),
+        default_rate: toNumber(materialForm.default_rate),
       });
       setMaterialForm(initialMaterialForm);
       await refreshMaterials();
@@ -235,9 +235,8 @@ export default function MaterialsPage() {
         supplier_name: purchaseForm.supplier_name.trim(),
         invoice_number: purchaseForm.invoice_number.trim(),
         notes: purchaseForm.notes.trim(),
-        quantity: Number(purchaseForm.quantity),
-        unit_rate: Number(purchaseForm.unit_rate),
-        total_amount: purchaseTotal,
+        quantity: toNumber(purchaseForm.quantity),
+        unit_rate: toNumber(purchaseForm.unit_rate),
       });
       setPurchaseForm((current) => ({ ...initialPurchaseForm, project: current.project, material: current.material }));
       setPurchases(await fetchMaterialPurchases(selectedProject));
@@ -260,8 +259,8 @@ export default function MaterialsPage() {
         ...usageForm,
         area_or_task: usageForm.area_or_task.trim(),
         notes: usageForm.notes.trim(),
-        quantity_used: Number(usageForm.quantity_used),
-        quantity_wasted: Number(usageForm.quantity_wasted || 0),
+        quantity_used: toNumber(usageForm.quantity_used),
+        quantity_wasted: toNumber(usageForm.quantity_wasted),
       });
       setUsageForm((current) => ({ ...initialUsageForm, project: current.project, material: current.material }));
       setUsageEntries(await fetchMaterialUsage(selectedProject));

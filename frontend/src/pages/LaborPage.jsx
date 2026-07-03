@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DataTable, MetricGrid } from "../components/DataViews";
 import VoiceField from "../components/VoiceField";
 import { createLaborEntry, fetchLaborEntries, fetchProjects } from "../services/api";
-import { formatCurrency } from "../utils/formatters";
+import { calculateLaborTotal, formatCurrency, toNumber } from "../utils/formatters";
 
 const laborTypeOptions = [
   "Mason",
@@ -33,10 +33,7 @@ const initialForm = {
 };
 
 function calculateTotal(form) {
-  const attendance = Number(form.attendance_days || 0);
-  const wagePerDay = Number(form.wage_per_day || 0);
-  const overtime = Number(form.overtime_amount || 0);
-  return attendance * wagePerDay + overtime;
+  return calculateLaborTotal(form.attendance_days, form.wage_per_day, form.overtime_amount);
 }
 
 function validateLaborForm(form) {
@@ -52,10 +49,10 @@ function validateLaborForm(form) {
   if (!form.worker_name.trim()) {
     return "Worker or crew name is required.";
   }
-  if (Number(form.attendance_days) <= 0) {
+  if (toNumber(form.attendance_days) <= 0) {
     return "Attendance must be greater than zero.";
   }
-  if (Number(form.wage_per_day) <= 0) {
+  if (toNumber(form.wage_per_day) <= 0) {
     return "Wage per day must be greater than zero.";
   }
   return "";
@@ -103,9 +100,9 @@ export default function LaborPage() {
   }, [selectedProject]);
 
   const computedTotal = useMemo(() => calculateTotal(form), [form]);
-  const totalLaborCost = useMemo(() => entries.reduce((sum, item) => sum + Number(item.total_amount || 0), 0), [entries]);
-  const totalAttendance = useMemo(() => entries.reduce((sum, item) => sum + Number(item.attendance_days || 0), 0), [entries]);
-  const overtimeCount = useMemo(() => entries.filter((item) => Number(item.overtime_amount || 0) > 0).length, [entries]);
+  const totalLaborCost = useMemo(() => entries.reduce((sum, item) => sum + toNumber(item.total_amount), 0), [entries]);
+  const totalAttendance = useMemo(() => entries.reduce((sum, item) => sum + toNumber(item.attendance_days), 0), [entries]);
+  const overtimeCount = useMemo(() => entries.filter((item) => toNumber(item.overtime_amount) > 0).length, [entries]);
   const metrics = [
     { label: "Labor Entries", value: entries.length, trend: "Recorded labor rows for this project" },
     { label: "Total Attendance", value: totalAttendance, trend: "Person-days or attendance units logged" },
@@ -145,10 +142,9 @@ export default function LaborPage() {
         worker_name: form.worker_name.trim(),
         contractor_name: form.contractor_name.trim(),
         notes: form.notes.trim(),
-        attendance_days: Number(form.attendance_days),
-        wage_per_day: Number(form.wage_per_day),
-        overtime_amount: Number(form.overtime_amount || 0),
-        total_amount: computedTotal,
+        attendance_days: toNumber(form.attendance_days),
+        wage_per_day: toNumber(form.wage_per_day),
+        overtime_amount: toNumber(form.overtime_amount),
       });
       setForm((current) => ({ ...initialForm, project: current.project }));
       setEntries(await fetchLaborEntries(selectedProject));

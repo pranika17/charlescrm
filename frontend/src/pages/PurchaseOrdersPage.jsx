@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { DataTable, MetricGrid, PageTitle, PanelTitle } from "../components/DataViews";
 import { createPurchaseOrder, fetchProjects, fetchPurchaseOrders, fetchVendors } from "../services/api";
-import { formatCurrency } from "../utils/formatters";
+import { formatCurrency, toNumber } from "../utils/formatters";
 
 const initialForm = {
   project: "",
@@ -95,7 +95,7 @@ export default function PurchaseOrdersPage() {
         ...form,
         project: Number(form.project),
         vendor: Number(form.vendor),
-        total_amount: Number(form.total_amount),
+        total_amount: toNumber(form.total_amount),
       });
       setForm((current) => ({ ...initialForm, project: current.project }));
       await loadData();
@@ -108,7 +108,7 @@ export default function PurchaseOrdersPage() {
 
   const rows = Array.isArray(orders) ? orders : [];
   const vendorById = new Map(vendors.map((vendor) => [vendor.id, vendor.name]));
-  const totalValue = rows.reduce((total, order) => total + Number(order.total_amount || 0), 0);
+  const totalValue = rows.reduce((total, order) => total + toNumber(order.total_amount), 0);
   const stats = [
     { label: "Orders", value: rows.length },
     { label: "Pending", value: rows.filter((order) => order.status === "pending").length },

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.common.calculations import closing_balance
 from apps.finance.models import CashFlowEntry, CollectionFollowUp, Payment, PettyCash, ProjectBudget
 
 
@@ -52,9 +53,18 @@ class CollectionFollowUpSerializer(PositiveAmountMixin, serializers.ModelSeriali
 
 
 class CashFlowEntrySerializer(PositiveAmountMixin, serializers.ModelSerializer):
-    amount_fields = ("opening_balance", "cash_in", "cash_out", "closing_balance")
+    amount_fields = ("opening_balance", "cash_in", "cash_out")
 
     class Meta:
         model = CashFlowEntry
         fields = "__all__"
-        read_only_fields = ("created_by", "created_at", "updated_at")
+        read_only_fields = ("created_by", "created_at", "updated_at", "closing_balance")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        opening_balance = attrs.get("opening_balance", getattr(self.instance, "opening_balance", 0))
+        cash_in = attrs.get("cash_in", getattr(self.instance, "cash_in", 0))
+        cash_out = attrs.get("cash_out", getattr(self.instance, "cash_out", 0))
+
+        attrs["closing_balance"] = closing_balance(opening_balance, cash_in, cash_out)
+        return attrs

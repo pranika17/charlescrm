@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { DataTable, MetricGrid, PageTitle, PanelTitle } from "../components/DataViews";
 import { createBOQ, fetchBOQ, fetchProjects } from "../services/api";
-import { formatCurrency } from "../utils/formatters";
+import { calculateLineTotal, formatCurrency, toNumber } from "../utils/formatters";
 
 const initialForm = {
   project: "",
@@ -132,11 +132,11 @@ export default function BOQPage() {
       setError("Unit is required.");
       return;
     }
-    if (Number(form.quantity) <= 0) {
+    if (toNumber(form.quantity) <= 0) {
       setError("Quantity must be greater than zero.");
       return;
     }
-    if (Number(form.unit_rate) < 0) {
+    if (toNumber(form.unit_rate) < 0) {
       setError("Unit rate cannot be negative.");
       return;
     }
@@ -147,8 +147,8 @@ export default function BOQPage() {
       await createBOQ({
         ...form,
         project: Number(form.project),
-        quantity: Number(form.quantity),
-        unit_rate: Number(form.unit_rate),
+        quantity: toNumber(form.quantity),
+        unit_rate: toNumber(form.unit_rate),
       });
       setForm((current) => ({ ...initialForm, project: current.project }));
       setSelectedSavedItem("new");
@@ -171,7 +171,7 @@ export default function BOQPage() {
     return [...accumulator, item];
   }, []);
   const savedCategories = Array.from(new Set(rows.map((item) => item.category).filter(Boolean))).sort();
-  const totalCost = rows.reduce((total, item) => total + Number(item.total_cost || Number(item.quantity || 0) * Number(item.unit_rate || 0)), 0);
+  const totalCost = rows.reduce((total, item) => total + (item.total_cost ? toNumber(item.total_cost) : calculateLineTotal(item.quantity, item.unit_rate)), 0);
   const stats = [
     { label: "BOQ Items", value: rows.length },
     { label: "Categories", value: new Set(rows.map((item) => item.category).filter(Boolean)).size },

@@ -3,12 +3,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MetricGrid, PageTitle, PanelTitle } from "../components/DataViews";
 import VoiceField from "../components/VoiceField";
 import { convertQuotationToProject, createQuotation, deleteQuotation, fetchQuotations } from "../services/api";
-import { formatCurrency, formatStatus } from "../utils/formatters";
+import { calculateLineTotal, formatCurrency, formatStatus, toNumber } from "../utils/formatters";
 
 const COMPANY_NAME = "Charles Civil Engineering";
 const COMPANY_TAGLINE = "Civil Construction Quotation";
 const CEO_NAME = "Charles";
 const CEO_TITLE = "Civil CEO";
+const COMPANY_EMAIL = "charlescivilengineering@gmail.com";
+const COMPANY_PHONE = "+91 98765 43210";
+const COMPANY_ADDRESS = "Chennai, Tamil Nadu, India";
+const COMPANY_WEBSITE = "www.charlescivilengineering.com";
 const COMPANY_TERMS = [
   "Quoted rates are valid only until the validity date mentioned in this quotation.",
   "Material rates are based on current market prices and may be revised if supplier rates change before work order confirmation.",
@@ -53,12 +57,13 @@ const initialForm = {
 
 function calculateTotals(form) {
   const subtotal = form.line_items.reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_rate || 0),
+    (sum, item) => sum + calculateLineTotal(item.quantity, item.unit_rate),
     0,
   );
-  const gstAmount = subtotal * (Number(form.gst_percent || 0) / 100);
-  const totalAmount = subtotal + gstAmount;
-  const advanceAmount = Number(form.advance_amount || 0);
+  const profitAmount = subtotal * (toNumber(form.profit_margin_percent) / 100);
+  const gstAmount = (subtotal + profitAmount) * (toNumber(form.gst_percent) / 100);
+  const totalAmount = subtotal + profitAmount + gstAmount;
+  const advanceAmount = toNumber(form.advance_amount);
   const balanceAmount = Math.max(totalAmount - advanceAmount, 0);
 
   return { subtotal, gstAmount, totalAmount, advanceAmount, balanceAmount };
@@ -78,17 +83,17 @@ function validateQuotationForm(form) {
     return "Valid until date cannot be earlier than the quotation date.";
   }
   const totals = calculateTotals(form);
-  if (Number(form.advance_amount || 0) < 0) {
+  if (toNumber(form.advance_amount) < 0) {
     return "Advance amount cannot be negative.";
   }
-  if (Number(form.advance_amount || 0) > totals.totalAmount) {
+  if (toNumber(form.advance_amount) > totals.totalAmount) {
     return "Advance amount cannot be greater than the quotation total.";
   }
   if (form.line_items.length === 0) {
     return "Add at least one line item.";
   }
   const invalidItem = form.line_items.find(
-    (item) => !item.description.trim() || Number(item.quantity) <= 0 || Number(item.unit_rate) < 0,
+    (item) => !item.description.trim() || toNumber(item.quantity) <= 0 || toNumber(item.unit_rate) < 0,
   );
   if (invalidItem) {
     return "Each line item needs a description, quantity greater than zero, and a valid unit rate.";
@@ -97,7 +102,7 @@ function validateQuotationForm(form) {
 }
 
 function formatPdfMoney(value) {
-  return `INR ${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  return `INR ${toNumber(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
 function sanitizePdfText(value) {
@@ -109,6 +114,118 @@ function sanitizePdfText(value) {
 
 function escapePdfText(value) {
   return sanitizePdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+function loadPdfImage(path) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = path;
+  });
+}
+
+function getInkBounds(imageData, width, height) {
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  let hasInk = false;
+
+  for (let yIndex = 0; yIndex < height; yIndex += 1) {
+    for (let xIndex = 0; xIndex < width; xIndex += 1) {
+      const offset = (yIndex * width + xIndex) * 4;
+      const alpha = imageData[offset + 3];
+      const red = imageData[offset];
+      const green = imageData[offset + 1];
+      const blue = imageData[offset + 2];
+      const isTransparent = alpha < 20;
+      const isLightBackground = red > 225 && green > 225 && blue > 225;
+
+      if (!isTransparent && !isLightBackground) {
+        minX = Math.min(minX, xIndex);
+        minY = Math.min(minY, yIndex);
+        maxX = Math.max(maxX, xIndex);
+        maxY = Math.max(maxY, yIndex);
+        hasInk = true;
+      }
+    }
+  }
+
+  if (!hasInk) {
+    return { x: 0, y: 0, width, height };
+  }
+
+  const padding = 10;
+  return {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.min(width, maxX + padding) - Math.max(0, minX - padding),
+    height: Math.min(height, maxY + padding) - Math.max(0, minY - padding),
+  };
+}
+
+async function loadPdfJpegAsset(paths) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  for (const path of paths) {
+    const image = await loadPdfImage(path);
+
+    if (!image) {
+      continue;
+    }
+
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = image.naturalWidth || image.width;
+    sourceCanvas.height = image.naturalHeight || image.height;
+    const sourceContext = sourceCanvas.getContext("2d");
+    sourceContext.drawImage(image, 0, 0);
+
+    const bounds = getInkBounds(
+      sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data,
+      sourceCanvas.width,
+      sourceCanvas.height,
+    );
+    const outputCanvas = document.createElement("canvas");
+    outputCanvas.width = bounds.width;
+    outputCanvas.height = bounds.height;
+    const outputContext = outputCanvas.getContext("2d");
+    outputContext.fillStyle = "#ffffff";
+    outputContext.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+    outputContext.drawImage(
+      sourceCanvas,
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
+      0,
+      0,
+      outputCanvas.width,
+      outputCanvas.height,
+    );
+
+    return {
+      bytes: dataUrlToBytes(outputCanvas.toDataURL("image/jpeg", 0.92)),
+      width: outputCanvas.width,
+      height: outputCanvas.height,
+    };
+  }
+
+  return null;
 }
 
 function wrapPdfText(value, maxLength = 78) {
@@ -145,10 +262,32 @@ function createPdfBlob(objects) {
     byteLength += bytes.length;
   }
 
+  function appendBytes(bytes) {
+    chunks.push(bytes);
+    byteLength += bytes.length;
+  }
+
+  function appendObject(object) {
+    if (typeof object === "string") {
+      append(object);
+      return;
+    }
+
+    object.parts.forEach((part) => {
+      if (typeof part === "string") {
+        append(part);
+      } else {
+        appendBytes(part);
+      }
+    });
+  }
+
   append("%PDF-1.4\n");
   objects.forEach((object, index) => {
     offsets.push(byteLength);
-    append(`${index + 1} 0 obj\n${object}\nendobj\n`);
+    append(`${index + 1} 0 obj\n`);
+    appendObject(object);
+    append("\nendobj\n");
   });
 
   const xrefOffset = byteLength;
@@ -161,12 +300,15 @@ function createPdfBlob(objects) {
   return new Blob(chunks, { type: "application/pdf" });
 }
 
-function buildQuotationPdfBlob(quotation) {
+async function buildQuotationPdfBlob(quotation) {
+  const signatureAsset = await loadPdfJpegAsset(["/signature.png", "./signature.png"]);
+  const sealAsset = await loadPdfJpegAsset(["/images.png", "/seal.png", "/seel.png", "/stamp.png", "./images.png", "./seal.png", "./seel.png", "./stamp.png"]);
   const pageWidth = 595.28;
   const pageHeight = 841.89;
   const margin = 42;
   const bottom = 46;
   const lineHeight = 16;
+  const contentWidth = pageWidth - margin * 2;
   const pages = [];
   let commands = [];
   let y = pageHeight - margin;
@@ -191,18 +333,40 @@ function buildQuotationPdfBlob(quotation) {
     y -= lineHeight;
   }
 
-  function drawText(value, x, rowY, size = 10, font = "F1") {
-    commands.push(`BT /${font} ${size} Tf 1 0 0 1 ${x} ${rowY} Tm (${escapePdfText(value)}) Tj ET`);
+  function drawText(value, x, rowY, size = 10, font = "F1", color = "0 g") {
+    commands.push(`${color} BT /${font} ${size} Tf 1 0 0 1 ${x} ${rowY} Tm (${escapePdfText(value)}) Tj ET 0 g`);
   }
 
-  function drawTextRight(value, x, rowY, size = 10, font = "F1") {
+  function drawTextRight(value, x, rowY, size = 10, font = "F1", color = "0 g") {
     const safeValue = sanitizePdfText(value);
     const width = safeValue.length * size * 0.52;
-    drawText(safeValue, Math.max(margin, x - width), rowY, size, font);
+    drawText(safeValue, Math.max(margin, x - width), rowY, size, font, color);
+  }
+
+  function drawTextCenter(value, centerX, rowY, size = 10, font = "F1", color = "0 g") {
+    const safeValue = sanitizePdfText(value);
+    const width = safeValue.length * size * 0.52;
+    drawText(safeValue, centerX - width / 2, rowY, size, font, color);
+  }
+
+  function drawFillBox(x, rowY, width, height, shade = "0 g") {
+    commands.push(`${shade} ${x} ${rowY} ${width} ${height} re f 0 g`);
   }
 
   function drawBox(x, rowY, width, height) {
     commands.push(`${x} ${rowY} ${width} ${height} re S`);
+  }
+
+  function drawStrokeBox(x, rowY, width, height, color = "0 G") {
+    commands.push(`${color} ${x} ${rowY} ${width} ${height} re S 0 G`);
+  }
+
+  function drawLine(x1, y1, x2, y2) {
+    commands.push(`${x1} ${y1} m ${x2} ${y2} l S`);
+  }
+
+  function drawImage(name, x, rowY, width, height) {
+    commands.push(`q ${width} 0 0 ${height} ${x} ${rowY} cm /${name} Do Q`);
   }
 
   function drawCircle(x, rowY, radius) {
@@ -230,130 +394,236 @@ function buildQuotationPdfBlob(quotation) {
     y -= 12;
   }
 
+  function sectionLabel(label) {
+    ensureSpace(24);
+    drawFillBox(margin, y - 14, contentWidth, 20);
+    drawText(label.toUpperCase(), margin + 10, y - 9, 9, "F2", "1 g");
+    y -= 30;
+  }
+
+  function fieldLine(label, value, x, rowY, width) {
+    drawText(label.toUpperCase(), x, rowY, 7, "F2");
+    wrapPdfText(value || "-", Math.floor(width / 4.8)).slice(0, 2).forEach((line, index) => {
+      drawText(line, x, rowY - 12 - index * 11, 9);
+    });
+  }
+
   function tableHeader() {
-    ensureSpace(lineHeight);
+    ensureSpace(24);
     const rowY = y;
-    drawText("Description", margin, rowY, 10, "F2");
-    drawTextRight("Qty", 356, rowY, 10, "F2");
-    drawText("Unit", 372, rowY, 10, "F2");
-    drawTextRight("Rate", 466, rowY, 10, "F2");
-    drawTextRight("Amount", pageWidth - margin, rowY, 10, "F2");
-    y -= lineHeight;
+    drawFillBox(margin, rowY - 7, contentWidth, 21);
+    drawText("MATERIAL / WORK DESCRIPTION", margin + 8, rowY, 8, "F2", "1 g");
+    drawTextRight("QUANTITY", 350, rowY, 8, "F2", "1 g");
+    drawText("UNIT", 366, rowY, 8, "F2", "1 g");
+    drawTextRight("PRICE / UNIT", 458, rowY, 8, "F2", "1 g");
+    drawTextRight("AMOUNT", pageWidth - margin - 8, rowY, 8, "F2", "1 g");
+    y -= 26;
   }
 
-  function totalRow(label, value, size = 11, font = "F1") {
-    ensureSpace(lineHeight);
-    drawText(label, 336, y, size, font);
-    drawTextRight(value, pageWidth - margin, y, size, font);
-    y -= lineHeight;
+  function fitImage(asset, maxWidth, maxHeight) {
+    if (!asset) {
+      return { width: maxWidth, height: maxHeight };
+    }
+
+    const ratio = Math.min(maxWidth / asset.width, maxHeight / asset.height);
+    return {
+      width: asset.width * ratio,
+      height: asset.height * ratio,
+    };
   }
 
-  drawBox(margin, y - 52, pageWidth - margin * 2, 58);
-  text(COMPANY_NAME.toUpperCase(), margin + 14, 18, "F2");
-  text(COMPANY_TAGLINE, margin + 14, 11);
-  textRight("CIVIL QUOTATION", pageWidth - margin - 14, 18, "F2");
-  textRight(`${CEO_TITLE}: ${CEO_NAME}`, pageWidth - margin - 14, 10, "F2");
-  gap(6);
-  text(`Quotation No: ${quotation.quotation_number}`, margin, 10, "F2");
-  if (quotation.revision_number > 1) {
-    text(`Revision: R${String(quotation.revision_number).padStart(2, "0")}`, margin, 10, "F2");
+  function amountSummaryRow(label, value, rowY, strong = false) {
+    drawText(label, 348, rowY, strong ? 9 : 8, strong ? "F2" : "F1");
+    drawTextRight(value, pageWidth - margin - 10, rowY, strong ? 9 : 8, strong ? "F2" : "F1");
   }
-  text(`Date: ${quotation.quotation_date || "-"}`, margin, 10);
-  if (quotation.valid_until) {
-    text(`Valid Until: ${quotation.valid_until}`, margin, 10);
-  }
-  rule();
 
-  text("Project", margin, 12, "F2");
-  text(quotation.project_name, margin, 11, "F2");
-  text(`Client: ${quotation.client_name}`);
-  if (quotation.client_phone) {
-    text(`Phone: ${quotation.client_phone}`);
-  }
-  if (quotation.client_email) {
-    text(`Email: ${quotation.client_email}`);
-  }
-  if (quotation.site_contact_name) {
-    text(`Site Contact: ${quotation.site_contact_name}`);
-  }
-  if (quotation.location) {
-    text(`Location: ${quotation.location}`);
-  }
-  if (quotation.work_duration) {
-    text(`Work Duration: ${quotation.work_duration}`);
-  }
+  drawBox(margin, bottom, contentWidth, pageHeight - bottom - margin);
+  drawFillBox(margin, pageHeight - 72, contentWidth, 30);
+  drawTextCenter("CONSTRUCTION QUOTATION", pageWidth / 2, pageHeight - 62, 18, "F2", "1 g");
+  y = pageHeight - 92;
+
+  const infoTop = y;
+  const halfWidth = contentWidth / 2;
+  drawBox(margin, infoTop - 134, contentWidth, 134);
+  drawLine(margin + halfWidth, infoTop - 134, margin + halfWidth, infoTop);
+  drawText("COMPANY NAME", margin + 10, infoTop - 16, 8, "F2");
+  drawText(COMPANY_NAME, margin + 10, infoTop - 31, 11, "F2");
+  drawText("Address", margin + 10, infoTop - 48, 8, "F2");
+  wrapPdfText(COMPANY_ADDRESS, 36).slice(0, 2).forEach((line, index) => drawText(line, margin + 10, infoTop - 62 - index * 11, 8));
+  drawText("Email ID", margin + 10, infoTop - 90, 8, "F2");
+  drawText(COMPANY_EMAIL, margin + 10, infoTop - 103, 8);
+  drawText("Phone No", margin + 10, infoTop - 118, 8, "F2");
+  drawText(COMPANY_PHONE, margin + 62, infoTop - 118, 8);
+
+  drawText("PARTY NAME", margin + halfWidth + 10, infoTop - 16, 8, "F2");
+  drawText(quotation.client_name || "-", margin + halfWidth + 10, infoTop - 31, 11, "F2");
+  drawText("Address", margin + halfWidth + 10, infoTop - 48, 8, "F2");
+  wrapPdfText(quotation.location || "-", 36).slice(0, 2).forEach((line, index) => drawText(line, margin + halfWidth + 10, infoTop - 62 - index * 11, 8));
+  drawText("Email ID", margin + halfWidth + 10, infoTop - 90, 8, "F2");
+  drawText(quotation.client_email || "-", margin + halfWidth + 65, infoTop - 90, 8);
+  drawText("Phone No", margin + halfWidth + 10, infoTop - 105, 8, "F2");
+  drawText(quotation.client_phone || "-", margin + halfWidth + 65, infoTop - 105, 8);
+  drawText("Quote Date", margin + halfWidth + 10, infoTop - 120, 8, "F2");
+  drawText(quotation.quotation_date || "-", margin + halfWidth + 65, infoTop - 120, 8);
+  y = infoTop - 150;
+
+  const projectTop = y;
+  drawBox(margin, projectTop - 84, contentWidth, 84);
+  drawLine(margin + halfWidth, projectTop - 84, margin + halfWidth, projectTop);
+  drawText("CONSTRUCTION BUILDING NAME", margin + 10, projectTop - 16, 8, "F2");
+  drawText(quotation.project_name || "-", margin + 10, projectTop - 31, 10, "F2");
+  drawText("Address", margin + 10, projectTop - 48, 8, "F2");
+  drawText(quotation.location || "-", margin + 62, projectTop - 48, 8);
+  drawText("Area", margin + 10, projectTop - 63, 8, "F2");
+  drawText(quotation.site_contact_name || "-", margin + 62, projectTop - 63, 8);
+  drawText("Project No", margin + 10, projectTop - 78, 8, "F2");
+  drawText(quotation.quotation_number || "-", margin + 62, projectTop - 78, 8);
+
+  drawText("Quote No", margin + halfWidth + 10, projectTop - 16, 8, "F2");
+  drawText(quotation.quotation_number || "-", margin + halfWidth + 86, projectTop - 16, 8);
+  drawText("Work Finish Time", margin + halfWidth + 10, projectTop - 34, 8, "F2");
+  drawText(quotation.work_duration || "-", margin + halfWidth + 86, projectTop - 34, 8);
+  drawText("Estimated Project", margin + halfWidth + 10, projectTop - 52, 8, "F2");
+  drawText(formatPdfMoney(quotation.total_amount), margin + halfWidth + 86, projectTop - 52, 8, "F2");
+  drawText("Revision", margin + halfWidth + 10, projectTop - 70, 8, "F2");
+  drawText(`R${String(quotation.revision_number || 1).padStart(2, "0")}`, margin + halfWidth + 86, projectTop - 70, 8);
+  y = projectTop - 104;
+
   if (quotation.description) {
-    wrapPdfText(quotation.description, 86).forEach((line) => text(line));
+    sectionLabel("Scope Description");
+    wrapPdfText(quotation.description, 94).forEach((line) => text(line, margin + 2, 9));
+    gap(8);
   }
-  gap();
 
-  text("Work Items", margin, 12, "F2");
-  rule();
+  sectionLabel("Material / Work Charges");
   tableHeader();
-  rule();
 
   quotation.line_items.forEach((item, index) => {
     const itemTitle = `${index + 1}. ${item.category ? `${item.category} - ` : ""}${item.description}`;
-    wrapPdfText(itemTitle, 52).forEach((line, lineIndex) => {
-      text(line, margin, 9);
+    const lines = wrapPdfText(itemTitle, 58);
+    const rowHeight = Math.max(28, lines.length * 12 + 10);
+    ensureSpace(rowHeight + 6);
+    const rowTop = y + 8;
+    drawBox(margin, rowTop - rowHeight, contentWidth, rowHeight);
+    lines.forEach((line, lineIndex) => {
+      drawText(line, margin + 8, rowTop - 15 - lineIndex * 12, 9);
       if (lineIndex === 0) {
-        const rowY = y + lineHeight;
-        drawTextRight(item.quantity, 356, rowY, 9);
-        drawText(item.unit || "-", 372, rowY, 9);
-        drawTextRight(formatPdfMoney(item.unit_rate), 466, rowY, 9);
-        drawTextRight(formatPdfMoney(item.line_total), pageWidth - margin, rowY, 9);
+        const rowY = rowTop - 15;
+        drawTextRight(item.quantity, 350, rowY, 9);
+        drawText(item.unit || "-", 366, rowY, 9);
+        drawTextRight(formatPdfMoney(item.unit_rate), 458, rowY, 9);
+        drawTextRight(formatPdfMoney(item.line_total), pageWidth - margin - 8, rowY, 9, "F2");
       }
     });
-    gap(4);
+    y -= rowHeight + 6;
   });
 
-  rule();
-  totalRow("Work Value", formatPdfMoney(quotation.subtotal), 11, "F2");
-  totalRow(`GST ${quotation.gst_percent}%`, formatPdfMoney(quotation.gst_amount), 11);
-  totalRow("Grand Total", formatPdfMoney(quotation.total_amount), 13, "F2");
-  totalRow("Advance", formatPdfMoney(quotation.advance_amount), 11);
-  totalRow("Balance", formatPdfMoney(quotation.balance_amount), 13, "F2");
+  ensureSpace(146);
+  const summaryTop = y;
+  const summaryX = 334;
+  const summaryWidth = pageWidth - margin - summaryX;
+  const summaryRows = [
+    ["Sub Total", formatPdfMoney(quotation.subtotal)],
+    ...(toNumber(quotation.profit_margin_amount) > 0
+      ? [[`Profit Margin ${quotation.profit_margin_percent}%`, formatPdfMoney(quotation.profit_margin_amount)]]
+      : []),
+    [`GST ${quotation.gst_percent}%`, formatPdfMoney(quotation.gst_amount)],
+    ["Total Amount", formatPdfMoney(quotation.total_amount), true],
+    ["Advance", formatPdfMoney(quotation.advance_amount)],
+    ["Balance", formatPdfMoney(quotation.balance_amount), true],
+  ];
+  const summaryHeight = 24 + summaryRows.length * 18;
+  drawBox(summaryX, summaryTop - summaryHeight, summaryWidth, summaryHeight);
+  drawLine(summaryX + 122, summaryTop - summaryHeight, summaryX + 122, summaryTop);
+  drawFillBox(summaryX, summaryTop - 20, summaryWidth, 20);
+  drawTextCenter("TOTAL", summaryX + 61, summaryTop - 14, 8, "F2", "1 g");
+  drawTextCenter("AMOUNT", summaryX + 122 + (summaryWidth - 122) / 2, summaryTop - 14, 8, "F2", "1 g");
+  summaryRows.forEach(([label, value, strong], index) => {
+    const rowTop = summaryTop - 20 - index * 18;
+    const rowY = rowTop - 13;
+    drawLine(summaryX, rowTop - 18, summaryX + summaryWidth, rowTop - 18);
+    amountSummaryRow(label, value, rowY, Boolean(strong));
+  });
+  y = summaryTop - summaryHeight - 16;
 
   if (quotation.notes) {
-    gap();
-    text("Notes", margin, 12, "F2");
-    wrapPdfText(quotation.notes, 86).forEach((line) => text(line));
+    sectionLabel("Special Notes");
+    wrapPdfText(quotation.notes, 94).forEach((line) => text(line, margin + 2, 9));
   }
 
   if (quotation.payment_terms) {
-    gap();
-    text("Payment Terms", margin, 12, "F2");
-    wrapPdfText(quotation.payment_terms, 86).forEach((line) => text(line));
+    sectionLabel("Payment Terms");
+    wrapPdfText(quotation.payment_terms, 94).forEach((line) => text(line, margin + 2, 9));
   }
 
-  gap();
-  text("Company Terms & Conditions", margin, 12, "F2");
+  sectionLabel("Terms and Conditions");
   COMPANY_TERMS.forEach((term, index) => {
-    wrapPdfText(`${index + 1}. ${term}`, 88).forEach((line) => text(line, margin, 9));
+    wrapPdfText(`${index + 1}. ${term}`, 96).forEach((line) => text(line, margin + 2, 8.5));
   });
 
-  gap();
-  text("Company Policy", margin, 12, "F2");
+  sectionLabel("Company Policy");
   COMPANY_POLICY.forEach((policy, index) => {
-    wrapPdfText(`${index + 1}. ${policy}`, 88).forEach((line) => text(line, margin, 9));
+    wrapPdfText(`${index + 1}. ${policy}`, 96).forEach((line) => text(line, margin + 2, 8.5));
   });
 
-  ensureSpace(98);
-  gap(8);
-  const signY = y - 78;
-  drawBox(margin, signY, 230, 76);
-  drawBox(pageWidth - margin - 230, signY, 230, 76);
-  drawCircle(pageWidth / 2, signY + 38, 34);
-  drawText("COMPANY", pageWidth / 2 - 28, signY + 46, 8, "F2");
-  drawText("SEAL", pageWidth / 2 - 14, signY + 32, 12, "F2");
-  drawText("Client Acceptance", margin + 12, signY + 52, 10, "F2");
-  drawText("Name / Signature / Date", margin + 12, signY + 16, 9);
-  drawText("Authorized Signatory", pageWidth - margin - 218, signY + 52, 10, "F2");
-  drawText(`For ${COMPANY_NAME}`, pageWidth - margin - 218, signY + 34, 9);
-  drawText(`${CEO_NAME}, ${CEO_TITLE}`, pageWidth - margin - 218, signY + 16, 9, "F2");
+  ensureSpace(126);
+  const signY = y - 104;
+  const sealBoxWidth = 118;
+  const sideBoxWidth = (contentWidth - sealBoxWidth) / 2;
+  drawBox(margin, signY, sideBoxWidth, 100);
+  drawBox(margin + sideBoxWidth, signY, sealBoxWidth, 100);
+  drawBox(margin + sideBoxWidth + sealBoxWidth, signY, sideBoxWidth, 100);
+  drawFillBox(margin, signY + 80, contentWidth, 20);
+  drawTextCenter("CLIENT ACCEPTANCE", margin + sideBoxWidth / 2, signY + 86, 8, "F2", "1 g");
+  drawTextCenter("COMPANY SEAL", margin + sideBoxWidth + sealBoxWidth / 2, signY + 86, 8, "F2", "1 g");
+  drawTextCenter("AUTHORIZED SIGNATURE", margin + sideBoxWidth + sealBoxWidth + sideBoxWidth / 2, signY + 86, 8, "F2", "1 g");
+
+  if (sealAsset) {
+    const sealSize = fitImage(sealAsset, 78, 64);
+    drawImage("SealImage", margin + sideBoxWidth + (sealBoxWidth - sealSize.width) / 2, signY + 12, sealSize.width, sealSize.height);
+  }
+
+  drawText("Name:", margin + 10, signY + 54, 8);
+  drawText("Signature:", margin + 10, signY + 30, 8);
+  drawText("Date:", margin + 10, signY + 12, 8);
+  const signatureX = margin + sideBoxWidth + sealBoxWidth + 10;
+  drawText(`For ${COMPANY_NAME}`, signatureX, signY + 66, 8);
+  if (signatureAsset) {
+    const signatureSize = fitImage(signatureAsset, sideBoxWidth - 26, 44);
+    drawImage("SignatureImage", signatureX, signY + 22, signatureSize.width, signatureSize.height);
+  } else {
+    drawText(CEO_NAME, signatureX, signY + 36, 16, "F2");
+  }
+  drawText(`${CEO_NAME}, ${CEO_TITLE}`, signatureX, signY + 12, 8, "F2");
+  drawTextRight(`${COMPANY_EMAIL} | ${COMPANY_WEBSITE}`, pageWidth - margin, 24, 8);
   addPage();
 
   const pageReferences = pages.map((_, index) => `${3 + index * 2} 0 R`).join(" ");
+  let nextImageObjectId = 3 + pages.length * 2;
+  const imageResourceEntries = [];
+  const imageObjects = [];
+
+  function addImageObject(name, asset) {
+    if (!asset) {
+      return;
+    }
+
+    const objectId = nextImageObjectId;
+    nextImageObjectId += 1;
+    imageResourceEntries.push(`/${name} ${objectId} 0 R`);
+    imageObjects.push({
+      parts: [
+        `<< /Type /XObject /Subtype /Image /Width ${asset.width} /Height ${asset.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${asset.bytes.length} >>\nstream\n`,
+        asset.bytes,
+        "\nendstream",
+      ],
+    });
+  }
+
+  addImageObject("SignatureImage", signatureAsset);
+  addImageObject("SealImage", sealAsset);
+
+  const imageResources = imageResourceEntries.length ? `/XObject << ${imageResourceEntries.join(" ")} >>` : "";
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     `<< /Type /Pages /Kids [${pageReferences}] /Count ${pages.length} >>`,
@@ -362,15 +632,17 @@ function buildQuotationPdfBlob(quotation) {
   pages.forEach((page, index) => {
     const pageObjectId = 3 + index * 2;
     const contentObjectId = pageObjectId + 1;
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> /Contents ${contentObjectId} 0 R >>`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> ${imageResources} >> /Contents ${contentObjectId} 0 R >>`);
     objects.push(`<< /Length ${new TextEncoder().encode(page).length} >>\nstream\n${page}\nendstream`);
   });
+
+  objects.push(...imageObjects);
 
   return createPdfBlob(objects);
 }
 
-function downloadQuotationPdf(quotation) {
-  const blob = buildQuotationPdfBlob(quotation);
+async function downloadQuotationPdf(quotation) {
+  const blob = await buildQuotationPdfBlob(quotation);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   const fileName = sanitizePdfText(quotation.quotation_number || "quotation").replace(/[<>:"/\\|?*]+/g, "-");
@@ -396,7 +668,7 @@ function quotationToForm(quotation) {
     work_duration: quotation.work_duration || "",
     payment_terms: quotation.payment_terms || "",
     gst_percent: String(quotation.gst_percent ?? 18),
-    profit_margin_percent: "0",
+    profit_margin_percent: String(quotation.profit_margin_percent ?? 0),
     advance_amount: String(quotation.advance_amount ?? ""),
     notes: quotation.notes || "",
     line_items: quotation.line_items?.length
@@ -467,7 +739,7 @@ export default function QuotationsPage() {
   }, [quotations]);
   const latestQuotations = useMemo(() => quotationHistory.map((group) => group.latest), [quotationHistory]);
   const quotationValue = useMemo(
-    () => latestQuotations.reduce((sum, item) => sum + Number(item.total_amount || 0), 0),
+    () => latestQuotations.reduce((sum, item) => sum + toNumber(item.total_amount), 0),
     [latestQuotations],
   );
   const convertedCount = useMemo(
@@ -528,16 +800,16 @@ export default function QuotationsPage() {
         work_duration: form.work_duration.trim(),
         payment_terms: form.payment_terms.trim(),
         notes: form.notes.trim(),
-        gst_percent: Number(form.gst_percent || 0),
-        profit_margin_percent: 0,
-        advance_amount: Number(form.advance_amount || 0),
+        gst_percent: toNumber(form.gst_percent),
+        profit_margin_percent: toNumber(form.profit_margin_percent),
+        advance_amount: toNumber(form.advance_amount),
         valid_until: form.valid_until || null,
         line_items: form.line_items.map((item) => ({
           category: item.category.trim(),
           description: item.description.trim(),
-          quantity: Number(item.quantity || 0),
+          quantity: toNumber(item.quantity),
           unit: item.unit.trim(),
-          unit_rate: Number(item.unit_rate || 0),
+          unit_rate: toNumber(item.unit_rate),
         })),
       });
       setOpenHistoryId(getQuotationRootId(savedQuotation));
@@ -575,8 +847,8 @@ export default function QuotationsPage() {
       return "Original";
     }
 
-    const currentTotal = Number(rows[index].total_amount || 0);
-    const previousTotal = Number(rows[index - 1].total_amount || 0);
+    const currentTotal = toNumber(rows[index].total_amount);
+    const previousTotal = toNumber(rows[index - 1].total_amount);
     const change = currentTotal - previousTotal;
 
     if (change === 0) {
@@ -876,7 +1148,7 @@ export default function QuotationsPage() {
                       className="field-control quotation-line-total"
                       disabled
                       type="text"
-                      value={formatCurrency(Number(item.quantity || 0) * Number(item.unit_rate || 0))}
+                      value={formatCurrency(calculateLineTotal(item.quantity, item.unit_rate))}
                     />
                     <button
                       className="small-button small-button--muted quotation-remove-button"
