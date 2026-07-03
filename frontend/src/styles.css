@@ -1367,6 +1367,85 @@ canvas {
   color: var(--green);
 }
 
+.toast-stack {
+  bottom: 22px;
+  display: grid;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 24px));
+  position: fixed;
+  right: 22px;
+  z-index: 80;
+}
+
+.toast-card {
+  align-items: start;
+  background: var(--panel);
+  border: 1px solid rgba(20, 116, 93, 0.24);
+  border-left: 5px solid var(--green);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr) 28px;
+  padding: 12px;
+}
+
+.toast-card--error {
+  border-color: rgba(184, 64, 53, 0.26);
+  border-left-color: var(--red);
+}
+
+.toast-icon {
+  align-items: center;
+  background: var(--green);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.toast-card--error .toast-icon {
+  background: var(--red);
+}
+
+.toast-card strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.toast-card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.toast-close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 16px;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+.toast-close:hover {
+  background: rgba(15, 23, 42, 0.07);
+  color: var(--ink);
+}
+
 .module-card {
   display: grid;
   gap: 12px;
@@ -3040,6 +3119,13 @@ tbody tr:hover {
 @media (max-width: 640px) {
   .content {
     padding: 12px;
+  }
+
+  .toast-stack {
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+    right: 12px;
   }
 
   .content-topbar {

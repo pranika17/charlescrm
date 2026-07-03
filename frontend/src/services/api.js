@@ -1,5 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 const AUTH_EXPIRED_EVENT = "charlescrm:auth-expired";
+const API_NOTICE_EVENT = "charlescrm:api-notice";
 
 function getStoredToken() {
   return window.localStorage.getItem("accessToken");
@@ -41,7 +42,51 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function flattenErrorMessages(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => flattenErrorMessages(item));
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value).flatMap(([field, messages]) => {
+      const fieldLabel = field === "non_field_errors" ? "" : `${field.replaceAll("_", " ")}: `;
+      return flattenErrorMessages(messages).map((message) => `${fieldLabel}${message}`);
+    });
+  }
+
+  return [String(value)];
+}
+
+function dispatchApiNotice(detail) {
+  window.dispatchEvent(new CustomEvent(API_NOTICE_EVENT, { detail }));
+}
+
+function getMutationVerb(method = "GET") {
+  const normalizedMethod = method.toUpperCase();
+
+  if (normalizedMethod === "POST") {
+    return "Saved successfully";
+  }
+  if (normalizedMethod === "PATCH" || normalizedMethod === "PUT") {
+    return "Updated successfully";
+  }
+  if (normalizedMethod === "DELETE") {
+    return "Deleted successfully";
+  }
+
+  return "";
+}
+
 async function request(path, options = {}) {
+  const method = options.method || "GET";
   const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -64,7 +109,7 @@ async function request(path, options = {}) {
       const errorBody = await response.json();
       errorMessage =
         errorBody.detail ||
-        Object.values(errorBody).flat().join(" ") ||
+        flattenErrorMessages(errorBody).join(" ") ||
         errorBody.message ||
         errorMessage;
     } catch {
@@ -73,7 +118,21 @@ async function request(path, options = {}) {
 
     const error = new Error(errorMessage);
     error.status = response.status;
+    dispatchApiNotice({
+      type: "error",
+      title: "Action failed",
+      message: errorMessage,
+    });
     throw error;
+  }
+
+  const mutationVerb = getMutationVerb(method);
+  if (mutationVerb && !path.startsWith("/auth/login/")) {
+    dispatchApiNotice({
+      type: "success",
+      title: mutationVerb,
+      message: "The latest data has been saved and refreshed where this page supports it.",
+    });
   }
 
   if (response.status === 204) {
@@ -472,4 +531,9 @@ export function hasValidAccessToken() {
 export function onAuthExpired(listener) {
   window.addEventListener(AUTH_EXPIRED_EVENT, listener);
   return () => window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
+}
+
+export function onApiNotice(listener) {
+  window.addEventListener(API_NOTICE_EVENT, listener);
+  return () => window.removeEventListener(API_NOTICE_EVENT, listener);
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { onApiNotice } from "../services/api";
 import { getRoleLabel, hasAccess } from "../utils/access";
 const navGroups = [
   {
@@ -158,6 +159,7 @@ export default function AppShell({ children }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [notices, setNotices] = useState([]);
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -179,6 +181,27 @@ export default function AppShell({ children }) {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    const unsubscribe = onApiNotice((event) => {
+      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const userName = user?.full_name || user?.email || "Current user";
+      const notice = {
+        id,
+        type: event.detail?.type || "success",
+        title: event.detail?.title || "Saved successfully",
+        message: event.detail?.message || "The action was completed.",
+        userName,
+      };
+
+      setNotices((current) => [notice, ...current].slice(0, 4));
+      window.setTimeout(() => {
+        setNotices((current) => current.filter((item) => item.id !== id));
+      }, notice.type === "error" ? 7000 : 4500);
+    });
+
+    return unsubscribe;
+  }, [user?.email, user?.full_name]);
 
   function isActive(path) {
     return path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
@@ -280,6 +303,27 @@ export default function AppShell({ children }) {
         </div>
         {children}
       </main>
+      <div className="toast-stack" role="status" aria-live="polite">
+        {notices.map((notice) => (
+          <div className={`toast-card ${notice.type === "error" ? "toast-card--error" : "toast-card--success"}`} key={notice.id}>
+            <div className="toast-icon" aria-hidden="true">
+              {notice.type === "error" ? "!" : "OK"}
+            </div>
+            <div>
+              <strong>{notice.title}</strong>
+              <p>{notice.type === "error" ? notice.message : `Added by ${notice.userName}. ${notice.message}`}</p>
+            </div>
+            <button
+              aria-label="Dismiss message"
+              className="toast-close"
+              onClick={() => setNotices((current) => current.filter((item) => item.id !== notice.id))}
+              type="button"
+            >
+              x
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
